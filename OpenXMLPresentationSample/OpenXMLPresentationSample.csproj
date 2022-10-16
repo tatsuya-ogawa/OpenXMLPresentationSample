@@ -12,10 +12,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Resources" />
-    </ItemGroup>
-
-    <ItemGroup>
       <None Update="Resources\Presentation.pptx">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
