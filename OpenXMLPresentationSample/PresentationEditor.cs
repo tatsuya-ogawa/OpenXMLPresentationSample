@@ -1,5 +1,7 @@
 using System.IO.Packaging;
 using System.Reflection;
+using DocumentFormat.OpenXml.Drawing.Wordprocessing;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace OpenXMLPresentationSample;
 
@@ -197,12 +199,31 @@ public class PresentationEditor
         textShape.NonVisualShapeProperties = new NonVisualShapeProperties
         (new NonVisualDrawingProperties() {Id = (UInt32) tree.ChildElements.Count - 1, Name = "My Text"},
             new NonVisualShapeDrawingProperties(new Drawing.ShapeLocks() {NoGrouping = true}),
-            new ApplicationNonVisualDrawingProperties(new PlaceholderShape() {Type = PlaceholderValues.Title}));
+            new ApplicationNonVisualDrawingProperties(new PlaceholderShape() {Type = PlaceholderValues.Body}));
         textShape.ShapeProperties = new ShapeProperties();
         // Specify the text of the title shape.
-        textShape.TextBody = new TextBody(new Drawing.BodyProperties(),
+        var paragraphProperties = new Drawing.ParagraphProperties()
+        {
+            Alignment = Drawing.TextAlignmentTypeValues.Left
+            // FontAlignment = Drawing.TextFontAlignmentValues.Top
+        };
+        paragraphProperties.Append(new Drawing.CharacterBullet()
+        {
+            Char = "-"
+        });
+        paragraphProperties.Append(new Drawing.BulletFont()
+        {
+            Typeface = "Arial"
+        });
+        textShape.TextBody = new TextBody(new Drawing.BodyProperties()
+            {
+                Anchor = Drawing.TextAnchoringTypeValues.Top
+            },
             new Drawing.ListStyle(),
-            new Drawing.Paragraph(new Drawing.Run(new Drawing.Text() {Text = text})));
+            new Drawing.Paragraph(new Drawing.Run(new Drawing.Text() {Text = text}))
+            {
+                ParagraphProperties = paragraphProperties
+            });
         textShape.ShapeProperties.Transform2D = new Drawing.Transform2D();
         textShape.ShapeProperties.Append(new Drawing.PresetGeometry
         {
@@ -210,6 +231,15 @@ public class PresentationEditor
         });
         textShape.ShapeProperties.Transform2D.Append(offset);
         textShape.ShapeProperties.Transform2D.Append(extents);
+        var outline = new Drawing.Outline();
+        outline.Append(new Drawing.SolidFill()
+        {
+            RgbColorModelHex = new Drawing.RgbColorModelHex()
+            {
+                Val = new HexBinaryValue("FFFFFF")
+            }
+        });
+        textShape.ShapeProperties.Append(outline);
     }
 
     private Drawing.TableCell CreateTextCell(string text)
@@ -260,7 +290,7 @@ public class PresentationEditor
 
         // Specify the required table properties for the table
         var tableProperties = new Drawing.TableProperties()
-            {FirstRow = true, BandRow = true,BandColumn = true};
+            {FirstRow = true, BandRow = true, BandColumn = true};
         var tableStyleId = new Drawing.TableStyleId();
         tableStyleId.Text = $"{{{Guid.NewGuid().ToString()}}}";
 
@@ -268,12 +298,12 @@ public class PresentationEditor
 
         // Declare and instantiate tablegrid and columns depending on your columns
         var tableGrid1 = new Drawing.TableGrid();
-        foreach (var column in  Enumerable.Range(0,6))
+        foreach (var column in Enumerable.Range(0, 6))
         {
             var gridColumn = new Drawing.GridColumn() {Width = 1948000L};
             tableGrid1.Append(gridColumn);
         }
-        
+
         table.Append(tableProperties);
         table.Append(tableGrid1);
 
@@ -282,6 +312,7 @@ public class PresentationEditor
         {
             headerRow.Append(CreateTextCell($"Header Column:{column}"));
         }
+
         headerRow.Append(CreateTextCell($"Remarks"));
         table.Append(headerRow);
 
@@ -444,7 +475,7 @@ public class PresentationEditor
         // Save the modified presentation.
         presentationPart.Presentation.Save();
     }
-    
+
     public void DoEdit(string docName, string newDocName, Stream image)
     {
         Copy(docName, newDocName);
