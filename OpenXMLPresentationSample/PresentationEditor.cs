@@ -231,7 +231,10 @@ public class PresentationEditor
         });
         textShape.ShapeProperties.Transform2D.Append(offset);
         textShape.ShapeProperties.Transform2D.Append(extents);
-        var outline = new Drawing.Outline();
+        var outline = new Drawing.Outline()
+        {
+            Width = 7500
+        };
         outline.Append(new Drawing.SolidFill()
         {
             RgbColorModelHex = new Drawing.RgbColorModelHex()
@@ -363,7 +366,6 @@ public class PresentationEditor
         }
 
         PresentationPart presentationPart = presentationDocument.PresentationPart;
-
         // Verify that the presentation is not empty.
         if (presentationPart == null)
         {
