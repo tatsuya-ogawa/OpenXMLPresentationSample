@@ -1,8 +1,3 @@
-using System.IO.Packaging;
-using System.Reflection;
-using DocumentFormat.OpenXml.Drawing.Wordprocessing;
-using DocumentFormat.OpenXml.Spreadsheet;
-
 namespace OpenXMLPresentationSample;
 
 using DocumentFormat.OpenXml.Presentation;
@@ -231,7 +226,10 @@ public class PresentationEditor
         });
         textShape.ShapeProperties.Transform2D.Append(offset);
         textShape.ShapeProperties.Transform2D.Append(extents);
-        var outline = new Drawing.Outline();
+        var outline = new Drawing.Outline()
+        {
+            Width = 7500
+        };
         outline.Append(new Drawing.SolidFill()
         {
             RgbColorModelHex = new Drawing.RgbColorModelHex()
@@ -363,7 +361,6 @@ public class PresentationEditor
         }
 
         PresentationPart presentationPart = presentationDocument.PresentationPart;
-
         // Verify that the presentation is not empty.
         if (presentationPart == null)
         {
@@ -417,6 +414,53 @@ public class PresentationEditor
         bodyShape.TextBody = new TextBody(new Drawing.BodyProperties(),
             new Drawing.ListStyle(),
             new Drawing.Paragraph());
+
+        Shape footerShape = slide.CommonSlideData.ShapeTree.AppendChild(new Shape());
+        drawingObjectId++;
+
+        var creationId = new DocumentFormat.OpenXml.Office2010.PowerPoint.CreationId();
+        creationId.AddNamespaceDeclaration("a16", "http://schemas.microsoft.com/office/drawing/2014/main");
+        creationId.SetAttribute(new OpenXmlAttribute("id","",$"{{{Guid.NewGuid().ToString().ToUpper()}}}"));
+        // Specify the required shape properties for the footer shape.
+        footerShape.NonVisualShapeProperties = new NonVisualShapeProperties(
+            new NonVisualDrawingProperties(
+                new ExtensionList(
+                    new Extension(creationId)
+                    {
+                        Uri = "{FF2B5EF4-FFF2-40B4-BE49-F238E27FC236}"
+                    }
+                )) {Id = drawingObjectId, Name = "Slide Number Placeholder 3"},
+            new NonVisualShapeDrawingProperties(new Drawing.ShapeLocks() {NoGrouping = true}),
+            new ApplicationNonVisualDrawingProperties(new PlaceholderShape()
+            {
+                Type = PlaceholderValues.SlideNumber,
+                Index = 12,
+                Size = PlaceholderSizeValues.Quarter
+            }));
+        footerShape.ShapeProperties = new ShapeProperties();
+
+        // Specify the text of the footer shape.
+        footerShape.TextBody = new TextBody(new Drawing.BodyProperties(),
+            new Drawing.ListStyle(),
+            new Drawing.Paragraph(
+                new Drawing.Field(
+                    new Drawing.RunProperties()
+                    {
+                        SmartTagClean = false,
+                        Language = "en-US"
+                    },
+                    new Drawing.ParagraphProperties(),
+                    new Drawing.Text()
+                    {
+                        Text = $"{position}"
+                    }
+                )
+                {
+                      Id = $"{{{Guid.NewGuid().ToString().ToUpper()}}}",
+                    Type = "slidenum"
+                }
+            )
+        );
 
         // Create the slide part for the new slide.
         SlidePart slidePart = presentationPart.AddNewPart<SlidePart>();
@@ -476,11 +520,25 @@ public class PresentationEditor
         presentationPart.Presentation.Save();
     }
 
+    [Obsolete]
+    private void UpdateSlideLayout(PresentationDocument presentationDocument, int page)
+    {
+        var slidePart = GetSlidePartFromSlideId(presentationDocument, GetPageSlideId(presentationDocument, page));
+        var hf = slidePart.SlideLayoutPart.SlideMasterPart.SlideMaster.Descendants<HeaderFooter>().FirstOrDefault();
+        if (hf == null)
+        {
+            hf = slidePart.SlideLayoutPart.SlideMasterPart.SlideMaster.AppendChild(new HeaderFooter());
+        }
+
+        hf.SlideNumber = BooleanValue.FromBoolean(false);
+        hf.Footer = BooleanValue.FromBoolean(false);
+        hf.DateTime = BooleanValue.FromBoolean(false);
+    }
+
     public void DoEdit(string docName, string newDocName, Stream image)
     {
         Copy(docName, newDocName);
         using var ppt = PresentationDocument.Open(newDocName, true);
-
 
         var offset = new Drawing.Offset
         {
