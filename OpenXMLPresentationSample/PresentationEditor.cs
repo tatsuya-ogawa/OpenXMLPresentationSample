@@ -1,3 +1,7 @@
+using DocumentFormat.OpenXml.Drawing.Charts;
+using DocumentFormat.OpenXml.Drawing.Diagrams;
+using DocumentFormat.OpenXml.Drawing.Wordprocessing;
+
 namespace OpenXMLPresentationSample;
 
 using DocumentFormat.OpenXml.Presentation;
@@ -123,13 +127,56 @@ public class PresentationEditor
         return (SlidePart) part.GetPartById(relId);
     }
 
+    private (ImagePartType type, int width, int height) GetImageShape(byte[] bytes)
+    {
+        if (bytes[0] == 0xff && bytes[1] == 0xd8)
+        {
+            // jpeg
+            var height = bytes[6] << 8 | bytes[7];
+            var width = bytes[8] << 8 | bytes[9];
+            return (ImagePartType.Jpeg, width, height);
+        }
+        else if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47)
+        {
+            // png            
+            var width = bytes[16] << 24 | bytes[17] << 16 | bytes[18] << 8 | bytes[19];
+            var height = bytes[20] << 24 | bytes[21] << 16 | bytes[22] << 8 | bytes[23];
+            return (ImagePartType.Png, width, height);
+        }
+        else
+        {
+            throw new Exception("unknown image format.");
+        }
+    }
+
     private void EmbedImage(PresentationDocument presentationDocument, int page, Stream image, Drawing.Offset offset,
         Drawing.Extents extents)
     {
-        var slidePart = GetSlidePartFromSlideId(presentationDocument, GetPageSlideId(presentationDocument, page));
-        ImagePart imagePart = slidePart.AddImagePart(ImagePartType.Jpeg);
-        imagePart.FeedData(image);
+        var memory = new MemoryStream();
+        image.CopyTo(memory);
+        var (type, width, height) = GetImageShape(memory.GetBuffer());
+        image.Seek(0, SeekOrigin.Begin);
+        ;
+        var imageAspect = (double) width / height;
+        var targetAspect = (double) extents.Cx / extents.Cy;
+        // landscape image
+        if (imageAspect > targetAspect)
+        {
+            var newHeight = (long) (extents.Cy / imageAspect * targetAspect);
+            offset.Y = offset.Y + (extents.Cy - newHeight) / 2;
+            extents.Cy = newHeight;
+        }
+        // portrait image
+        else if (imageAspect < targetAspect)
+        {
+            var newWidth = (long) (extents.Cx * imageAspect / targetAspect);
+            offset.X = offset.X + (extents.Cx - newWidth) / 2;
+            extents.Cx = newWidth;
+        }
 
+        var slidePart = GetSlidePartFromSlideId(presentationDocument, GetPageSlideId(presentationDocument, page));
+        ImagePart imagePart = slidePart.AddImagePart(type);
+        imagePart.FeedData(image);
 
         var tree = slidePart.Slide.Descendants<ShapeTree>().First();
 
@@ -420,7 +467,7 @@ public class PresentationEditor
 
         var creationId = new DocumentFormat.OpenXml.Office2010.PowerPoint.CreationId();
         creationId.AddNamespaceDeclaration("a16", "http://schemas.microsoft.com/office/drawing/2014/main");
-        creationId.SetAttribute(new OpenXmlAttribute("id","",$"{{{Guid.NewGuid().ToString().ToUpper()}}}"));
+        creationId.SetAttribute(new OpenXmlAttribute("id", "", $"{{{Guid.NewGuid().ToString().ToUpper()}}}"));
         // Specify the required shape properties for the footer shape.
         footerShape.NonVisualShapeProperties = new NonVisualShapeProperties(
             new NonVisualDrawingProperties(
@@ -456,7 +503,7 @@ public class PresentationEditor
                     }
                 )
                 {
-                      Id = $"{{{Guid.NewGuid().ToString().ToUpper()}}}",
+                    Id = $"{{{Guid.NewGuid().ToString().ToUpper()}}}",
                     Type = "slidenum"
                 }
             )
@@ -545,6 +592,7 @@ public class PresentationEditor
             X = 7500000,
             Y = 2000000,
         };
+
         var extents = new Drawing.Extents
         {
             Cx = 3000000,
