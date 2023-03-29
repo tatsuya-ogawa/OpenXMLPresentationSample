@@ -132,9 +132,27 @@ public class PresentationEditor
         if (bytes[0] == 0xff && bytes[1] == 0xd8)
         {
             // jpeg
-            var height = bytes[6] << 8 | bytes[7];
-            var width = bytes[8] << 8 | bytes[9];
-            return (ImagePartType.Jpeg, width, height);
+            for (var i = 2;i<bytes.Length-1;i++)
+            {
+                byte marker1 = bytes[i];
+                byte marker2 = bytes[i+1];
+                
+                if ((marker1 == 0xFF && marker2 is >= 0xC0 and <= 0xC3))
+                {
+                    var height = bytes[i+5] << 8 | bytes[i+6];
+                    var width = bytes[i+7] << 8 | bytes[i+8];
+                    return (ImagePartType.Jpeg, width, height);
+                }
+                else if (marker1 == 0xFF)
+                {
+                    // skip EOF
+                    if (marker2 is 0xD9 or 0xFF) continue;
+                    // Skip segment
+                    var length = bytes[i + 2] << 8 | bytes[i + 3];
+                    if (length > 0) i += length - 2;
+                }
+            }
+            throw new Exception("unknown jpeg format.");
         }
         else if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47)
         {
