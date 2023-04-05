@@ -132,15 +132,15 @@ public class PresentationEditor
         if (bytes[0] == 0xff && bytes[1] == 0xd8)
         {
             // jpeg
-            for (var i = 2;i<bytes.Length-1;i++)
+            for (var i = 2; i < bytes.Length - 1; i++)
             {
                 byte marker1 = bytes[i];
-                byte marker2 = bytes[i+1];
-                
+                byte marker2 = bytes[i + 1];
+
                 if ((marker1 == 0xFF && marker2 is >= 0xC0 and <= 0xC3))
                 {
-                    var height = bytes[i+5] << 8 | bytes[i+6];
-                    var width = bytes[i+7] << 8 | bytes[i+8];
+                    var height = bytes[i + 5] << 8 | bytes[i + 6];
+                    var width = bytes[i + 7] << 8 | bytes[i + 8];
                     return (ImagePartType.Jpeg, width, height);
                 }
                 else if (marker1 == 0xFF)
@@ -152,6 +152,7 @@ public class PresentationEditor
                     if (length > 0) i += length - 2;
                 }
             }
+
             throw new Exception("unknown jpeg format.");
         }
         else if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4e && bytes[3] == 0x47)
@@ -275,9 +276,9 @@ public class PresentationEditor
         {
             Typeface = "Arial"
         });
-        textShape.TextBody = new TextBody(new Drawing.BodyProperties()
+        textShape.TextBody = new TextBody(new Drawing.BodyProperties(new Drawing.NoAutoFit())
             {
-                Anchor = Drawing.TextAnchoringTypeValues.Top
+                Anchor = Drawing.TextAnchoringTypeValues.Top,
             },
             new Drawing.ListStyle(),
             new Drawing.Paragraph(new Drawing.Run(new Drawing.Text() {Text = text}))
